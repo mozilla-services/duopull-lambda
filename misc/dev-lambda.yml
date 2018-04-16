@@ -1,0 +1,53 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'duopull dev lambda template'
+Parameters:
+  DuoPullRole:
+    Description: 'IAM role for Lambda function'
+    Type: String
+  LambdaBucket:
+    Description: 'S3 bucket with Lambda code'
+    Type: String
+  LambdaKey:
+    Description: 'S3 bucket key with Lambda code'
+    Type: String
+  KinesisStream:
+    Description: 'Kinesis stream for event submission'
+    Type: String
+  DuoPullRegion:
+    Description: 'Region containing resources'
+    Type: String
+Resources:
+  DuoPullPermissionForEventsToInvokeLambda:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      SourceArn: !Sub ${DuoPullScheduledRule.Arn}
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref DuoPullFunction
+      Principal: events.amazonaws.com
+  DuoPullScheduledRule:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Targets:
+        - Id: DuoPullFunctionTarget
+          Arn: !Sub ${DuoPullFunction.Arn}
+      ScheduleExpression: rate(5 minutes)
+      Description: ScheduledRule
+      Name: DuoPullScheduledRule
+      State: ENABLED
+  DuoPullFunction:
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: duopull Lambda function
+      FunctionName: duopull-dev-lambda
+      Code:
+        S3Key: !Ref LambdaKey
+        S3Bucket: !Ref LambdaBucket
+      Handler: duopull
+      Role: !Ref DuoPullRole
+      Runtime: go1.x
+      Environment:
+        Variables:
+          DEBUGAWS: '1' # Set AWS debugging for dev Lambda deployment
+          DUOPULL_REGION: !Ref DuoPullRegion
+          DUOPULL_S3_BUCKET: !Ref LambdaBucket
+          DUOPULL_KINESIS_STREAM: !Ref KinesisStream

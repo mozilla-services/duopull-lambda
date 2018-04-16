@@ -1,0 +1,50 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'duopull dev template'
+Resources:
+  DuoPullRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action:
+              - 'sts:AssumeRole'
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+      Policies:
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - 's3:*'
+                Resource: !Sub ${S3Bucket.Arn}/*
+                Effect: 'Allow'
+          PolicyName: DuoPullS3Object
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - 's3:*'
+                Resource: !Sub ${S3Bucket.Arn}
+                Effect: 'Allow'
+          PolicyName: DuoPullS3
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - 'kinesis:*'
+                Resource: !Sub ${KinesisStream.Arn}
+                Effect: 'Allow'
+          PolicyName: DuoPullKinesis
+        - PolicyDocument:
+            Statement:
+              - Action:
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: 'arn:aws:logs:*:*:*'
+                Effect: 'Allow'
+          PolicyName: DuoPullLogs
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+  KinesisStream:
+    Type: 'AWS::Kinesis::Stream'
+    Properties:
+      ShardCount: 1
