@@ -2,7 +2,7 @@ all: duopull
 
 # Package lambda function in zip file
 package:
-	docker run -t -i --rm -v `pwd`:/go/src/github.com/mozilla-services/duopull-lambda \
+	docker run -i --rm -v `pwd`:/go/src/github.com/mozilla-services/duopull-lambda \
 		golang:1.7 \
 		/bin/bash -c 'cd /go/src/github.com/mozilla-services/duopull-lambda && make lambda'
 
