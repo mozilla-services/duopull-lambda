@@ -1,7 +1,7 @@
 # Lambda Function for Duo Log Collection
 
 This is a Lambda function that pulls administration/authentication/telephony logs
-from the Duo API and pushes them into the a logging pipeline via a Kinesis stream.
+from the Duo API and pushes them into a logging pipeline via a Kinesis stream.
 
 ## Basic operation
 
@@ -60,7 +60,7 @@ The secret key to be used for API requests.
 
 #### DEBUGAWS
 
-If the DEBUGAWS environment variable is set, the function will generate mock events and make
+If the DEBUGAWS environment variable is set to `1`, the function will generate mock events and make
 requests to `https://www.mozilla.org` instead of the actual Duo API to confirm outbound
 connectivity from the function. In this mode the function will update the S3 state and push
 events to Kinesis but will not make requests to the actual Duo API.
@@ -68,4 +68,5 @@ events to Kinesis but will not make requests to the actual Duo API.
 #### DEBUGDUO
 
 In this mode the function will not execute as a Lambda but will poll the Duo API for log data,
-write the data to stdout and exit.
+write the data to stdout and exit. The DEBUGDUO environment variable should be set to `1` to
+enable this mode.
