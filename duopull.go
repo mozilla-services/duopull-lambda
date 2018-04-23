@@ -490,10 +490,10 @@ func HandleRequest() error {
 }
 
 func main() {
-	if os.Getenv("DEBUGDUO") != "" {
+	if os.Getenv("DEBUGDUO") == "1" {
 		debug = debugDuo
 	}
-	if os.Getenv("DEBUGAWS") != "" {
+	if os.Getenv("DEBUGAWS") == "1" {
 		if debug != debugOff {
 			fmt.Fprint(os.Stderr, "DEBUGDUO and DEBUGAWS cannot both be set\n")
 			os.Exit(1)
