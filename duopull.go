@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
@@ -13,10 +14,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/kinesis"
 	"github.com/aws/aws-sdk-go/service/s3"
+	log "github.com/sirupsen/logrus"
+	"go.mozilla.org/mozlogrus"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -160,6 +164,16 @@ type emitEvent struct {
 	Event interface{} `json:"event"` // The actual event
 }
 
+func (e *emitEvent) toInterface() (map[string]interface{}, error) {
+	ret := make(map[string]interface{})
+	buf, err := json.Marshal(e)
+	if err != nil {
+		return ret, err
+	}
+	err = json.Unmarshal(buf, &ret)
+	return ret, err
+}
+
 // getTimestamp extracts the timestamp value from e as an integer
 func (e *emitEvent) getTimestamp() (int, error) {
 	// Define a pseudo-struct for extraction of the timestamp instead of using
@@ -191,7 +205,17 @@ type emitter struct {
 func (e *emitter) emit() error {
 	if debug == debugDuo { // Duo debug, just write events to stdout
 		for _, v := range e.events {
-			buf, err := json.Marshal(v)
+			cv, err := v.toInterface()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				continue
+			}
+			out, err := toMozLog(cv)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "%v\n", err)
+				continue
+			}
+			buf, err := json.Marshal(out)
 			if err != nil {
 				return err
 			}
@@ -206,7 +230,15 @@ func (e *emitter) emit() error {
 
 	obuf := make([]*kinesis.PutRecordsRequestEntry, 0)
 	for i, v := range e.events {
-		e, err := json.Marshal(v)
+		cv, err := v.toInterface()
+		if err != nil {
+			return err
+		}
+		out, err := toMozLog(cv)
+		if err != nil {
+			return err
+		}
+		e, err := json.Marshal(out)
 		if err != nil {
 			return err
 		}
@@ -308,6 +340,69 @@ func (m *minTime) save() error {
 		return err
 	}
 	return nil
+}
+
+func flatten(in map[string]interface{}, out map[string]interface{}, prefix []string) error {
+	for k, v := range in {
+		ak := k
+		if len(prefix) > 0 {
+			ak = fmt.Sprintf("%v_%v", strings.Join(prefix, "_"), ak)
+		}
+		switch reflect.ValueOf(v).Kind() {
+		case reflect.Map:
+			t0, ok := v.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("type assertion failed flattening map value")
+			}
+			err := flatten(t0, out, append(prefix, k))
+			if err != nil {
+				return err
+			}
+		case reflect.Slice, reflect.Array:
+			t0, ok := v.([]interface{})
+			if !ok {
+				return fmt.Errorf("type assertion failed flattening slice value")
+			}
+			if len(t0) == 0 {
+				break
+			}
+			arrayval := make([]interface{}, 0)
+			for _, x := range t0 {
+				k := reflect.ValueOf(x).Kind()
+				if k == reflect.Array || k == reflect.Slice || k == reflect.Map ||
+					k == reflect.Struct {
+					// If it's an array of maps/slices/etc, we wont handle
+					// it
+					return fmt.Errorf("can't handle slice containing complex types")
+				}
+				arrayval = append(arrayval, x)
+			}
+			out[ak] = arrayval
+		default:
+			out[ak] = v
+		}
+	}
+	return nil
+}
+
+func toMozLog(in interface{}) (interface{}, error) {
+	var ret interface{}
+	buf := make(map[string]interface{})
+	cv, ok := in.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("type assertion failed on input event")
+	}
+	err := flatten(cv, buf, []string{})
+	if err != nil {
+		return nil, err
+	}
+	l := log.New()
+	l.Formatter = &mozlogrus.MozLogFormatter{LoggerName: "duopull", Type: "app.log"}
+	bbuf := bytes.NewBuffer([]byte{})
+	l.Out = bbuf
+	l.WithFields(buf).Info("duopull event")
+	err = json.Unmarshal(bbuf.Bytes(), &ret)
+	return ret, err
 }
 
 // logRequest makes a request for logs from the Duo API from mintime onwards, using the
