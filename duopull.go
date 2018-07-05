@@ -392,6 +392,25 @@ func toMozLog(in interface{}) (interface{}, error) {
 	if !ok {
 		return nil, fmt.Errorf("type assertion failed on input event")
 	}
+
+	// Duo logging will store JSON data structures as strings in the log response,
+	// specifically with the event description field. Convert that into a
+	// structure here.
+	if x, ok := cv["event"]; ok {
+		y, ok := x.(map[string]interface{})
+		if ok {
+			if z, ok := y["description"]; ok {
+				if zs, ok := z.(string); ok {
+					ndesc := make(map[string]interface{})
+					err := json.Unmarshal([]byte(zs), &ndesc)
+					if err == nil { // on error, leave original intact
+						y["description"] = ndesc
+					}
+				}
+			}
+		}
+	}
+
 	err := flatten(cv, buf, []string{})
 	if err != nil {
 		return nil, err
