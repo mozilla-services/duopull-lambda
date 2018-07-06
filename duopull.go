@@ -397,8 +397,7 @@ func toMozLog(in interface{}) (interface{}, error) {
 	// specifically with the event description field. Convert that into a
 	// structure here.
 	if x, ok := cv["event"]; ok {
-		y, ok := x.(map[string]interface{})
-		if ok {
+		if y, ok := x.(map[string]interface{}); ok {
 			if z, ok := y["description"]; ok {
 				if zs, ok := z.(string); ok {
 					ndesc := make(map[string]interface{})
