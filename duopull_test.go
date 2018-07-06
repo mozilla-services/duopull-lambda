@@ -16,6 +16,9 @@ var sample = []string{
 	"location":{"city":"San Francisco","country":"US","state":"California"},
 	"new_enrollment":false,"reason":"User approved","result":"SUCCESS",
 	"timestamp":1528921066,"username":"user2"}}`,
+	`{"event":{"action":"admin_login","description":"{\"factor\": \"sms\", \"device\": \"000-000-0000\", \"primary_auth_method\": \"Password\", \"ip_address\": \"0.0.0.0\"}",
+	"object":null,"timestamp":1530628619,
+	"username":"Admin User"},"path":"/admin/v1/logs/administrator"}`,
 }
 
 var flattentest = []struct {
